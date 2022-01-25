@@ -5,3 +5,6 @@ This program is meant to start as root at user login, and opens a window when yo
 
 ## Dependencies
 - [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear/)
+- X11
+# Notes
+- make sure the `uinput` kernel module is loaded (```sudo modprobe uinput```)
