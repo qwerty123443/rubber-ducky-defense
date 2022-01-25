@@ -87,11 +87,6 @@ int do_display_thing(int fdi, int fdo)
 
     xw.swa.colormap = xw.cmap;
     xw.swa.event_mask = 0;
-    // ExposureMask | KeyPressMask | KeyReleaseMask |
-    // ButtonPress | ButtonReleaseMask | ButtonMotionMask |
-    // Button1MotionMask | Button3MotionMask | Button4MotionMask | Button5MotionMask |
-    // PointerMotionMask | KeymapStateMask;
-
     xw.win = XCreateWindow(xw.dpy, xw.root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0,
                            XDefaultDepth(xw.dpy, xw.screen), InputOutput,
                            xw.vis, CWEventMask | CWColormap, &xw.swa);
@@ -114,26 +109,26 @@ int do_display_thing(int fdi, int fdo)
     int flags = fcntl(fdi, F_GETFL, 0);
     fcntl(fdi, F_SETFL, flags | O_NONBLOCK);
 
-    while (typed_chars < 4)
+    while (1)
     {
-
-        // Input
         started = timestamp();
 
+        // try to read a keyboard input
         if (read(fdi, &ev, sizeof(struct input_event)) > 0 && ev.type == EV_KEY && ev.value == 0)
         {
+            // one of the number keys was pressed
+            // TODO: numpad support?
             if (ev.code >= KEY_1 && ev.code <= KEY_0)
             {
                 typed_code[typed_chars] = (ev.code - KEY_1 + 1) % 10 + '0';
                 typed_chars++;
-                if (typed_chars == 4)
+                if (typed_chars == 4) // succesfully typed in 4 numbers
                 {
-                    typed_code[typed_chars] = '\0';
                     if (strcmp(typed_code, verification_code) == 0)
                     {
                         passed = 1;
                     }
-                    break;
+                    break; // exit the while loop
                 }
             }
             else if (ev.code == KEY_BACKSPACE)
@@ -146,26 +141,28 @@ int do_display_thing(int fdi, int fdo)
         if (errno && errno != EAGAIN)
             break;
 
-        // GUI
+        // GUI stuff
         if (nk_begin(ctx, "Type this:", nk_rect(10, 10, 200, 200), NK_WINDOW_TITLE))
         {
             nk_layout_row_dynamic(ctx, 20, 1);
+            // TODO: this could probably do with a clearer explanation of what to do
+            // UX is not my strongest point
             nk_label(ctx, verification_code, NK_TEXT_ALIGN_LEFT);
             nk_label(ctx, typed_code, NK_TEXT_ALIGN_LEFT);
         }
         nk_end(ctx);
 
-        // Draw
+        // actually draw the GUI
         XClearWindow(xw.dpy, xw.win);
         nk_xlib_render(xw.win, nk_rgb(30, 30, 30));
         XFlush(xw.dpy);
 
-        // Timing
+        // GUI timing
         dt = timestamp() - started;
         if (dt < DTIME)
             sleep_for(DTIME - dt);
     }
-
+    // GUI cleanup
     nk_xfont_del(xw.dpy, xw.font);
     nk_xlib_shutdown();
     XUnmapWindow(xw.dpy, xw.win);
@@ -191,12 +188,14 @@ static void *keyboard_thread(void *arg)
 
     memset(path_to_open, 0, sizeof path_to_open);
     strcat(path_to_open, "/dev/input/by-id/");
+    // FIXME: hack to make this program make on my machine.
+    // for some reason, the filenames that get passed in as argument 
+    // have a small amount of (seeiming) garbage added on, which 
+    // breaks my simple program :(
     strncat(path_to_open, filename, fname_len - strlen(".tmp-c13:85"));
     // if (strstr(path_to_open, match_thing) == 0)
     if (strcmp(path_to_open + strlen(path_to_open) - strlen(match_thing), match_thing) != 0)
         return NULL;
-
-    // printf("path to open: %s\n", path_to_open);
 
     // Grab KBD output and system input
     fdi = open(path_to_open, O_RDONLY);
