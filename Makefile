@@ -1,7 +1,7 @@
 src = $(wildcard *.c)
 obj = $(src:.c=.o)
 
-CFLAGS := -Wall -O3 -fPIC
+CFLAGS := -Wall -O3 -march=native -mtune=native -fPIC
 LDFLAGS := -s -pthread -lX11 -lm
 
 all: $(basename $(src))
